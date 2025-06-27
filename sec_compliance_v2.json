@@ -1,0 +1,1381 @@
+{
+  "name": "sec-compliance_v2",
+  "nodes": [
+    {
+      "parameters": {
+        "modelName": "models/gemini-1.5-flash-8b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -2840,
+        1080
+      ],
+      "id": "d218f1fc-a871-4143-9351-16e796d96542",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "xl9vyGScqOkf80VU",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $workflow.id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -2660,
+        1080
+      ],
+      "id": "6aa234ea-706c-4cf2-be57-344a48ac8a6e",
+      "name": "Simple Memory2"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-mcp.mcpClient",
+      "typeVersion": 1,
+      "position": [
+        -1564,
+        665
+      ],
+      "id": "7177a31a-db94-46a7-99ab-a9f7059f6bb5",
+      "name": "Pre-ListTools-GitHub",
+      "alwaysOutputData": false,
+      "notesInFlow": true,
+      "retryOnFail": false,
+      "executeOnce": false,
+      "credentials": {
+        "mcpClientApi": {
+          "id": "VYjI1rrHpJpNHQA8",
+          "name": "GitHub"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-mcp.mcpClient",
+      "typeVersion": 1,
+      "position": [
+        -1344,
+        665
+      ],
+      "id": "02714f25-2fe8-4d1a-b306-6ec4f55dac2b",
+      "name": "Pre-ListTools-Notion",
+      "credentials": {
+        "mcpClientApi": {
+          "id": "A11ZdVqn0UmmRpQj",
+          "name": "Notion"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeTool",
+        "toolName": "={{ $fromAI(\"tool\", \"selected tool to execute\") }}",
+        "toolParameters": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Tool_Parameters', ``, 'json') }}"
+      },
+      "type": "n8n-nodes-mcp.mcpClientTool",
+      "typeVersion": 1,
+      "position": [
+        100,
+        760
+      ],
+      "id": "1ecc1d10-380d-4169-82f3-c2e355f6dd98",
+      "name": "ExecuteTool-GitHub",
+      "credentials": {
+        "mcpClientApi": {
+          "id": "VYjI1rrHpJpNHQA8",
+          "name": "GitHub"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeTool",
+        "toolName": "={{ $fromAI(\"tool\", \"selected tool to execute\") }}",
+        "toolParameters": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Tool_Parameters', ``, 'json') }}"
+      },
+      "type": "n8n-nodes-mcp.mcpClientTool",
+      "typeVersion": 1,
+      "position": [
+        280,
+        760
+      ],
+      "id": "7d89e660-981c-4235-a680-cbb8e2998eee",
+      "name": "ExecuteTool-Notion",
+      "credentials": {
+        "mcpClientApi": {
+          "id": "A11ZdVqn0UmmRpQj",
+          "name": "Notion"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You will receive a plain text input describing multiple conditions a project must meet. Your task is to extract these conditions and organize them into a single JSON object where:\n\n- The keys are short, descriptive identifiers written in kebab-case (lowercase words separated by hyphens).\n- The values are the full condition statements as they appear in the input.\n- Do not include any explanations, summaries, or text outside of the JSON object.\n- Output only the JSON object.\n\nExample input:\n\"Projects must include a README.md with author and technology details. The repository should also have a CONTRIBUTING.md file describing the contribution process.\"\n\nExpected output:\n{\n  \"readme-should-contain-authors-and-technologies\": \"Projects must include a README.md with author and technology details.\",\n  \"contributing-md-required\": \"The repository should also have a CONTRIBUTING.md file describing the contribution process.\"\n}\n\n<plain text>\n{{ $json.data }}\n{{ $('Extract content').item.json.text }}\n</plain text>\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        -2820,
+        860
+      ],
+      "id": "e7ad5daa-be4e-4bd7-bfe7-bb9de95c3f7c",
+      "name": "Generate compliance obj"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Generate compliance obj').first().json.output\nconst jsonMatch = input.match(/\\{[\\s\\S]*?\\}/);\n\nlet parsed;\ntry {\n  parsed = JSON.parse(jsonMatch[0]);\n} catch (e) {\n  throw new Error(\"Failed to parse extracted JSON: \" + e.message);\n}\nconst conditions = Object.entries(parsed).map(([key, value]) => ({\n  key,\n  value\n}));\n\nreturn conditions;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -464,
+        665
+      ],
+      "id": "c9469205-d4d7-4451-b731-3448fc2067e6",
+      "name": "Parse Conditions"
+    },
+    {
+      "parameters": {
+        "batchSize": "=1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -244,
+        665
+      ],
+      "id": "95fce01a-5cfb-4349-b681-39a8e981c816",
+      "name": "Loop Over Conditions"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an intelligent compliance agent. You are given:\n\n1. A list of available tools (MCPs), each of which can be invoked to inspect either a GitHub repository or a Notion workspace.\n2. A specific condition to verify.\n\nYour task:\n\n1. Analyze the condition.\n2. Determine whether it refers to:\n   - Contents inside a code repository (e.g., README.md, source code, configuration files), or\n   - External documentation (e.g., Notion pages such as “Project Overview”, “Goals”, “Development Practices”).\n3. Select the appropriate tool accordingly:\n   - Use a GitHub MCP if the condition targets repository contents.\n   - Use a Notion MCP if it refers to documentation or organizational context.\n\nImportant:\n- Always inspect the actual file or page **contents** when required by the condition—not just the existence of the resource.\n- Chek for file or pages only **inside** the GitHub repository or Notion Page provisioned, do not search for other public repositorys.\n- Never fabricate file or document contents. Use only data retrieved through the available tools.\n- Keep your response concise and professional.\n- Generate as many tool calls as necessary to verify the condition accurately.\n\nFor each condition you are asked to verify:\n- Treat the condition as a single, complete unit. Do not split it into multiple model calls unless absolutely necessary.\n- You may make as many tool (MCP) calls as needed to gather data (e.g., scan files, retrieve metadata, search content).\n- When using the language model, make your queries as broad and comprehensive as possible to minimize small, repeated calls.\n- Only call the model again if the previously gathered information was insufficient to assess the full condition.\n\nIf a condition involves multiple components (e.g., “README must include A, B, and C”), verify all components together and generate **a single** report indicating what’s missing or problematic.\n\nUse memory or storage mechanisms to avoid repeating already completed checks.\n\n\nIf the condition is met:\n- Return: `OK` followed by the reason why you considered it that way.\n\nIf the condition is **not met**:\n- Write a short compliance report (max 2000 characters) explaining what is missing and why.\n- Upload the report to the **`TICKETS`** database in Notion using the Notion MCP.\n  - Each ticket must have a clear and descriptive title related to the condition.\n  - The generated page must include a body with a summary of the issue.\n\nIf the condition **cannot be verified** due to missing information, lack of access, or insufficient tool capabilities:\n- Upload a ticket to the Notion `TICKETS` database explaining why verification could not be completed.\n\nBe precise. Do not make assumptions. Always choose the best tool based on the condition’s nature.\n\n---\n\n<GitHub tool list>\n{{ $('Pre-ListTools-GitHub').item.json.tools.toJsonString() }}\n</GitHub tool list>\n\n<Notion tool list>\n{{ $('Pre-ListTools-Notion').item.json.tools.toJsonString() }}\n</Notion tool list>\n\n<Compliance condition>\n{{ $('Parse Conditions').item.json.value }}\n</Compliance condition>\n\n<GitHub repository URL>\n{{ $('Get form data').item.json.url }}\n</GitHub repository URL>\n\n<GitHub repository owner>\n{{ $('Get form data').first().json.username }}\n</GitHub repository owner>\n\n<GitHub repository name>\n{{ $('Get form data').first().json.repository }}\n</GitHub repository name>\n\n<Notion documentation DB ID>\n{{ $('On form submission').item.json['Compliance documentation ID (Notion)'] }}\n</Notion documentation DB ID>\n\n<Notion TICKETS DB ID>\n{{ $('On form submission').item.json['Tickets DB (Notion) '] }}\n</Notion TICKETS DB ID>\n\n<NOTION TICKET generation structure>\n{\n  \"tool\": \"API-post-page\",\n  \"tool_parameters\": {{ $('Ticket generate structure').item.json.Tool_Parameters.toJsonString() }}\n}\n\n{\n  \"tool\": \"API-patch-block-children\",\n  \"Tool_Parameters\": {\n    \"block_id\": \"${insert here the page ID}\",\n    \"children\": [\n      {\n        \"object\": \"block\",\n        \"type\": \"paragraph\",\n        \"paragraph\": {\n          \"rich_text\": [\n            {\n              \"type\": \"text\",\n              \"text\": {\n                \"content\": \"${insert here a brief description of the detected problem}\"\n              }\n            }\n          ]\n        }\n      }\n    ]\n  }\n}\n</NOTION TICKET generation structure>\n\n\nEnsure the content field (description) is not empty. If no details are available, write a generic message explaining that the issue was detected but the agent could not extract specific details.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        8,
+        540
+      ],
+      "id": "cca914a2-aa9d-4dea-8ffb-6d907cb809db",
+      "name": "Verify conditions",
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "name": "Next condition",
+      "typeVersion": 1,
+      "position": [
+        420,
+        720
+      ],
+      "id": "52f5a02f-e104-4472-a3c5-e75a42034861"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -100,
+        760
+      ],
+      "id": "3b23c92d-e487-4ec3-bba1-846b5e2bfa92",
+      "name": "Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "xl9vyGScqOkf80VU",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeTool",
+        "toolName": "API-post-database-query",
+        "toolParameters": "={\n    \"database_id\": \"{{ $('On form submission').item.json['Tickets DB (Notion) '] }}\"\n}"
+      },
+      "type": "n8n-nodes-mcp.mcpClient",
+      "typeVersion": 1,
+      "position": [
+        -2440,
+        860
+      ],
+      "id": "a26f5342-d3c7-4251-904f-70eee076c61e",
+      "name": "Get old tickets",
+      "credentials": {
+        "mcpClientApi": {
+          "id": "A11ZdVqn0UmmRpQj",
+          "name": "Notion"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = JSON.parse($input.first().json.result.content[0].text);\nconst ids = data.results.map(page => {\n  return {\n    json: {\n      pageId: page.id\n    }\n    };\n});\n\nreturn ids.length > 0 ? ids : {'empty': true}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2220,
+        860
+      ],
+      "id": "eea8b5de-74a0-411b-837a-e93db9a6a70a",
+      "name": "parse old tickets"
+    },
+    {
+      "parameters": {
+        "operation": "executeTool",
+        "toolName": "API-delete-a-block",
+        "toolParameters": "={\n    \"block_id\": \"{{ $json.pageId }}\"\n}"
+      },
+      "type": "n8n-nodes-mcp.mcpClient",
+      "typeVersion": 1,
+      "position": [
+        -1560,
+        900
+      ],
+      "id": "30485392-98ce-49d0-9f3f-3285a175e9c5",
+      "name": "Delete ticket",
+      "credentials": {
+        "mcpClientApi": {
+          "id": "A11ZdVqn0UmmRpQj",
+          "name": "Notion"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "name": "Next ticket",
+      "typeVersion": 1,
+      "position": [
+        -1340,
+        900
+      ],
+      "id": "9636c37b-2abd-4372-92bd-7485d8a1958a"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1780,
+        880
+      ],
+      "id": "5ed98ab5-7eee-4fc2-8d12-8f31c1f73768",
+      "name": "Loop over tickets"
+    },
+    {
+      "parameters": {
+        "formTitle": "Security Compliance",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "GitHub Repository",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Compliance documentation ID (Notion)"
+            },
+            {
+              "fieldLabel": "Tickets DB (Notion) ",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Compliance file (pdf)",
+              "fieldType": "file",
+              "multipleFiles": false,
+              "acceptFileTypes": ".pdf"
+            },
+            {
+              "fieldLabel": "Compliance file (GitHub)"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        -3920,
+        860
+      ],
+      "id": "fd19f384-23b1-4133-97cf-c8eec96031f9",
+      "name": "On form submission",
+      "webhookId": "088ac43d-d17d-4be2-b627-7c0a19fc31af"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('On form submission').item.json['Compliance file (GitHub)'].replace('https://github.com/', 'https://raw.githubusercontent.com/')\n    .replace('/blob/', '/'); }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "fabdiangelo"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3040,
+        740
+      ],
+      "id": "081c33f7-0e07-44ff-9c1b-ee58dae83b36",
+      "name": "Get compliance rules",
+      "credentials": {
+        "githubApi": {
+          "id": "36gBDu4PMyKquHne",
+          "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const arr = $('On form submission').first().json['GitHub Repository'].split('/').slice(-2);\nreturn {\n  'username': arr[0],\n  'repository': arr[1],\n  'url': $('On form submission').first().json['GitHub Repository']\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -684,
+        665
+      ],
+      "id": "7522b3f1-64ae-48fe-97c1-9e21e960c64f",
+      "name": "Get form data"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ec63681f-9b94-4ded-baa3-bca1549f7617",
+              "leftValue": "={{ $json.empty }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2000,
+        860
+      ],
+      "id": "35297d25-326e-45c2-a3e1-ccebc3703e49",
+      "name": "Is empty?"
+    },
+    {
+      "parameters": {
+        "operation": "executeTool",
+        "toolName": "API-retrieve-a-database",
+        "toolParameters": "={\n\"database_id\": \n\"{{ $('On form submission').item.json[\"Tickets DB (Notion) \"] }}\"\n} "
+      },
+      "type": "n8n-nodes-mcp.mcpClient",
+      "typeVersion": 1,
+      "position": [
+        -1124,
+        665
+      ],
+      "id": "e84f5876-68cf-4943-921d-b186d6f63f84",
+      "name": "Get tickets schema",
+      "credentials": {
+        "mcpClientApi": {
+          "id": "A11ZdVqn0UmmRpQj",
+          "name": "Notion"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const databaseMetadata = JSON.parse($input.first().json.result.content[0].text);\n\nconst dbProperties = {};\nfor (const [name, prop] of Object.entries(databaseMetadata.properties)) {\n  dbProperties[name] = {\n    id: prop.id,\n    type: prop.type\n  };\n}\n\nfunction typeExamples(type) {\n  switch (type) {\n    case \"title\":\n      return {\n        title: [{ text: { content: \"Example of title\" } }]\n      };\n    case \"rich_text\":\n      return {\n        rich_text: [{ text: { content: \"Example of text\" } }]\n      };\n    case \"select\":\n      return {\n        select: { name: \"Example option\" }\n      };\n    case \"status\":\n      return {\n        status: { name: \"In progress\" }\n      };\n    case \"multi_select\":\n      return {\n        multi_select: [{ name: \"label 1\" }, { name: \"label 2\" }]\n      };\n    case \"number\":\n      return {\n        number: 42\n      };\n    case \"date\":\n      return {\n        date: { start: \"2025-06-25\" }\n      };\n    case \"checkbox\":\n      return {\n        checkbox: true\n      };\n    case \"url\":\n      return {\n        url: \"https://example.com\"\n      };\n    case \"email\":\n      return {\n        email: \"mail@example.com\"\n      };\n    case \"phone_number\":\n      return {\n        phone_number: \"+59812345678\"\n      };\n    default:\n      return undefined;\n  }\n}\n\nconst exampleProperties = {};\nfor (const [name, def] of Object.entries(dbProperties)) {\n  const example = typeExamples(def.type);\n  if (example) {\n    exampleProperties[name] = example;\n  }\n}\n\nconst examplePayload = {\n  tool: \"API-post-page\",\n  Tool_Parameters: {\n    parent: {\n      database_id: databaseMetadata.id\n    },\n    properties: exampleProperties\n  }\n};\n\nreturn examplePayload;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -904,
+        665
+      ],
+      "id": "12383111-d22b-4217-9b96-d9089c1c2d74",
+      "name": "Ticket generate structure"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e18bc4fc-e244-48c8-8b14-cf5fd31a8c66",
+              "leftValue": "={{ $('On form submission').item.json['Compliance file (GitHub)'] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -3260,
+        860
+      ],
+      "id": "0b1bb076-7982-4877-88d5-5784e735bcc1",
+      "name": "GitHub compliance rules?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fff0db5a-4e13-4f80-a174-c9bd734fb9d4",
+              "leftValue": "={{ $('On form submission').item.json['Compliance file (pdf)'].size }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -3700,
+        860
+      ],
+      "id": "f1800ad6-2386-4214-9beb-0861d0a3b3e8",
+      "name": "PDF compliance rules?"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "=Compliance_file__pdf_",
+        "options": {
+          "joinPages": true
+        }
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -3480,
+        740
+      ],
+      "id": "b05a4802-440c-402d-b165-4e5fd5292262",
+      "name": "Extract content"
+    }
+  ],
+  "pinData": {
+    "Pre-ListTools-Notion": [
+      {
+        "json": {
+          "tools": [
+            {
+              "name": "API-get-user",
+              "description": "Retrieve a user\nError Responses:\n400: 400",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "user_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "user_id"
+                ],
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              }
+            },
+            {
+              "name": "API-get-users",
+              "description": "List all users\nError Responses:\n400: 400",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "start_cursor": {
+                    "type": "string",
+                    "description": "If supplied, this endpoint will return a page of results starting after the cursor provided. If not supplied, this endpoint will return the first page of results."
+                  },
+                  "page_size": {
+                    "type": "integer",
+                    "description": "The number of items from the full list desired in the response. Maximum: 100"
+                  }
+                },
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              }
+            },
+            {
+              "name": "API-get-self",
+              "description": "Retrieve your token's bot user",
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              }
+            },
+            {
+              "name": "API-post-database-query",
+              "description": "Query a database",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "database_id": {
+                    "type": "string",
+                    "description": "Identifier for a Notion database."
+                  },
+                  "filter_properties": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "A list of page property value IDs associated with the database. Use this param to limit the response to a specific page property value or values for pages that meet the `filter` criteria."
+                  },
+                  "filter": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "description": "When supplied, limits which pages are returned based on the [filter conditions](ref:post-database-query-filter)."
+                  },
+                  "sorts": {
+                    "type": "array",
+                    "description": "When supplied, orders the results based on the provided [sort criteria](ref:post-database-query-sort)."
+                  },
+                  "start_cursor": {
+                    "type": "string",
+                    "description": "When supplied, returns a page of results starting after the cursor provided. If not supplied, this endpoint will return the first page of results."
+                  },
+                  "page_size": {
+                    "type": "integer",
+                    "description": "The number of items from the full list desired in the response. Maximum: 100"
+                  },
+                  "archived": {
+                    "type": "boolean"
+                  },
+                  "in_trash": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "database_id"
+                ],
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              }
+            },
+            {
+              "name": "API-post-search",
+              "description": "Search by title",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "The text that the API compares page and database titles against."
+                  },
+                  "sort": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "description": "A set of criteria, `direction` and `timestamp` keys, that orders the results. The **only** supported timestamp value is `\"last_edited_time\"`. Supported `direction` values are `\"ascending\"` and `\"descending\"`. If `sort` is not provided, then the most recently edited results are returned first."
+                  },
+                  "filter": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "description": "A set of criteria, `value` and `property` keys, that limits the results to either only pages or only databases. Possible `value` values are `\"page\"` or `\"database\"`. The only supported `property` value is `\"object\"`."
+                  },
+                  "start_cursor": {
+                    "type": "string",
+                    "description": "A `cursor` value returned in a previous response that If supplied, limits the response to results starting after the `cursor`. If not supplied, then the first page of results is returned. Refer to [pagination](https://developers.notion.com/reference/intro#pagination) for more details."
+                  },
+                  "page_size": {
+                    "type": "integer",
+                    "description": "The number of items from the full list to include in the response. Maximum: `100`."
+                  }
+                },
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              }
+            },
+            {
+              "name": "API-get-block-children",
+              "description": "Retrieve block children",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "block_id": {
+                    "type": "string",
+                    "description": "Identifier for a [block](ref:block)"
+                  },
+                  "start_cursor": {
+                    "type": "string",
+                    "description": "If supplied, this endpoint will return a page of results starting after the cursor provided. If not supplied, this endpoint will return the first page of results."
+                  },
+                  "page_size": {
+                    "type": "integer",
+                    "description": "The number of items from the full list desired in the response. Maximum: 100"
+                  }
+                },
+                "required": [
+                  "block_id"
+                ],
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              }
+            },
+            {
+              "name": "API-patch-block-children",
+              "description": "Append block children",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "block_id": {
+                    "type": "string",
+                    "description": "Identifier for a [block](ref:block). Also accepts a [page](ref:page) ID."
+                  },
+                  "children": {
+                    "type": "array",
+                    "description": "Child content to append to a container block as an array of [block objects](ref:block)"
+                  },
+                  "after": {
+                    "type": "string",
+                    "description": "The ID of the existing block that the new block should be appended after."
+                  }
+                },
+                "required": [
+                  "block_id",
+                  "children"
+                ],
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              }
+            },
+            {
+              "name": "API-retrieve-a-block",
+              "description": "Retrieve a block",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "block_id": {
+                    "type": "string",
+                    "description": "Identifier for a Notion block"
+                  }
+                },
+                "required": [
+                  "block_id"
+                ],
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              }
+            },
+            {
+              "name": "API-update-a-block",
+              "description": "Update a block",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "block_id": {
+                    "type": "string",
+                    "description": "Identifier for a Notion block"
+                  },
+                  "type": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "description": "The [block object `type`](ref:block#block-object-keys) value with the properties to be updated. Currently only `text` (for supported block types) and `checked` (for `to_do` blocks) fields can be updated."
+                  },
+                  "archived": {
+                    "type": "boolean",
+                    "description": "Set to true to archive (delete) a block. Set to false to un-archive (restore) a block."
+                  }
+                },
+                "required": [
+                  "block_id"
+                ],
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              }
+            },
+            {
+              "name": "API-delete-a-block",
+              "description": "Delete a block",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "block_id": {
+                    "type": "string",
+                    "description": "Identifier for a Notion block"
+                  }
+                },
+                "required": [
+                  "block_id"
+                ],
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              }
+            },
+            {
+              "name": "API-retrieve-a-page",
+              "description": "Retrieve a page",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "page_id": {
+                    "type": "string",
+                    "description": "Identifier for a Notion page"
+                  },
+                  "filter_properties": {
+                    "type": "string",
+                    "description": "A list of page property value IDs associated with the page. Use this param to limit the response to a specific page property value or values. To retrieve multiple properties, specify each page property ID. For example: `?filter_properties=iAk8&filter_properties=b7dh`."
+                  }
+                },
+                "required": [
+                  "page_id"
+                ],
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              }
+            },
+            {
+              "name": "API-patch-page",
+              "description": "Update page properties",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "page_id": {
+                    "type": "string",
+                    "description": "The identifier for the Notion page to be updated."
+                  },
+                  "properties": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "description": "The property values to update for the page. The keys are the names or IDs of the property and the values are property values. If a page property ID is not included, then it is not changed."
+                  },
+                  "in_trash": {
+                    "type": "boolean",
+                    "description": "Set to true to delete a block. Set to false to restore a block."
+                  },
+                  "archived": {
+                    "type": "boolean"
+                  },
+                  "icon": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "description": "A page icon for the page. Supported types are [external file object](https://developers.notion.com/reference/file-object) or [emoji object](https://developers.notion.com/reference/emoji-object)."
+                  },
+                  "cover": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "description": "A cover image for the page. Only [external file objects](https://developers.notion.com/reference/file-object) are supported."
+                  }
+                },
+                "required": [
+                  "page_id"
+                ],
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              }
+            },
+            {
+              "name": "API-post-page",
+              "description": "Create a page",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "parent": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  "properties": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  "children": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "The content to be rendered on the new page, represented as an array of [block objects](https://developers.notion.com/reference/block)."
+                  },
+                  "icon": {
+                    "type": "string",
+                    "description": "The icon of the new page. Either an [emoji object](https://developers.notion.com/reference/emoji-object) or an [external file object](https://developers.notion.com/reference/file-object).."
+                  },
+                  "cover": {
+                    "type": "string",
+                    "description": "The cover image of the new page, represented as a [file object](https://developers.notion.com/reference/file-object)."
+                  }
+                },
+                "required": [
+                  "parent",
+                  "properties"
+                ],
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              }
+            },
+            {
+              "name": "API-create-a-database",
+              "description": "Create a database",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "parent": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  "properties": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "description": "Property schema of database. The keys are the names of properties as they appear in Notion and the values are [property schema objects](https://developers.notion.com/reference/property-schema-object)."
+                  },
+                  "title": {
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "parent",
+                  "properties"
+                ],
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              }
+            },
+            {
+              "name": "API-update-a-database",
+              "description": "Update a database",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "database_id": {
+                    "type": "string",
+                    "description": "identifier for a Notion database"
+                  },
+                  "title": {
+                    "type": "array",
+                    "description": "An array of [rich text objects](https://developers.notion.com/reference/rich-text) that represents the title of the database that is displayed in the Notion UI. If omitted, then the database title remains unchanged."
+                  },
+                  "description": {
+                    "type": "array",
+                    "description": "An array of [rich text objects](https://developers.notion.com/reference/rich-text) that represents the description of the database that is displayed in the Notion UI. If omitted, then the database description remains unchanged."
+                  },
+                  "properties": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "description": "Property schema of database. The keys are the names of properties as they appear in Notion and the values are [property schema objects](https://developers.notion.com/reference/property-schema-object)."
+                  }
+                },
+                "required": [
+                  "database_id"
+                ],
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              }
+            },
+            {
+              "name": "API-retrieve-a-database",
+              "description": "Retrieve a database",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "database_id": {
+                    "type": "string",
+                    "description": "An identifier for the Notion database."
+                  }
+                },
+                "required": [
+                  "database_id"
+                ],
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              }
+            },
+            {
+              "name": "API-retrieve-a-page-property",
+              "description": "Retrieve a page property item",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "page_id": {
+                    "type": "string",
+                    "description": "Identifier for a Notion page"
+                  },
+                  "property_id": {
+                    "type": "string",
+                    "description": "Identifier for a page [property](https://developers.notion.com/reference/page#all-property-values)"
+                  },
+                  "page_size": {
+                    "type": "integer",
+                    "description": "For paginated properties. The max number of property item objects on a page. The default size is 100"
+                  },
+                  "start_cursor": {
+                    "type": "string",
+                    "description": "For paginated properties."
+                  }
+                },
+                "required": [
+                  "page_id",
+                  "property_id"
+                ],
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              }
+            },
+            {
+              "name": "API-retrieve-a-comment",
+              "description": "Retrieve comments",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "block_id": {
+                    "type": "string",
+                    "description": "Identifier for a Notion block or page"
+                  },
+                  "start_cursor": {
+                    "type": "string",
+                    "description": "If supplied, this endpoint will return a page of results starting after the cursor provided. If not supplied, this endpoint will return the first page of results."
+                  },
+                  "page_size": {
+                    "type": "integer",
+                    "description": "The number of items from the full list desired in the response. Maximum: 100"
+                  }
+                },
+                "required": [
+                  "block_id"
+                ],
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              }
+            },
+            {
+              "name": "API-create-a-comment",
+              "description": "Create comment",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "parent": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "description": "The page that contains the comment"
+                  },
+                  "rich_text": {
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "parent",
+                  "rich_text"
+                ],
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "Get compliance rules": [
+      {
+        "json": {
+          "data": "# sec-framework\n\n1- All repositories must contain a README.md file with basic project information.\n\n2- Each README.md should include: \n  - Project description\n  - Setup instructions\n  - Usage examples\n  - Contribution guidelines\n\n3- Notion workspace must include a page or file that lists all technologies used, including:\n  - Frontend frameworks\n  - Backend stack\n  -  External services/APIs\n\n4- Notion should have a clearly marked “Project Overview” or “Getting Started” section.\n\n5- All scripts must follow naming conventions.\n\n6- No hardcoded credentials or secrets; use environment variables.\n\n7- Linter checks must pass (e.g., ESLint, PHPStan, etc.).\n\n8- All relevant workflows (e.g., deployment, testing) should be documented or automated using CI/CD or platforms like n8n.\n\n9- There should be a changelog or release notes file for tracking changes.\n"
+        }
+      }
+    ],
+    "Get tickets schema": [
+      {
+        "json": {
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"object\":\"database\",\"id\":\"21d50e39-36fe-80e6-b832-db728ddde998\",\"cover\":null,\"icon\":null,\"created_time\":\"2025-06-25T13:07:00.000Z\",\"created_by\":{\"object\":\"user\",\"id\":\"20ad872b-594c-8147-b9cb-00023715f1fd\"},\"last_edited_by\":{\"object\":\"user\",\"id\":\"20ad872b-594c-8147-b9cb-00023715f1fd\"},\"last_edited_time\":\"2025-06-26T11:38:00.000Z\",\"title\":[{\"type\":\"text\",\"text\":{\"content\":\"Tickets\",\"link\":null},\"annotations\":{\"bold\":false,\"italic\":false,\"strikethrough\":false,\"underline\":false,\"code\":false,\"color\":\"default\"},\"plain_text\":\"Tickets\",\"href\":null}],\"description\":[],\"is_inline\":false,\"properties\":{\"Nombre\":{\"id\":\"title\",\"name\":\"Nombre\",\"type\":\"title\",\"title\":{}}},\"parent\":{\"type\":\"workspace\",\"workspace\":true},\"url\":\"https://www.notion.so/21d50e3936fe80e6b832db728ddde998\",\"public_url\":null,\"archived\":false,\"in_trash\":false,\"request_id\":\"b35df64f-101a-40e5-b862-4d649f49d039\"}"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate compliance obj",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory2": {
+      "ai_memory": [
+        [
+          {
+            "node": "Generate compliance obj",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pre-ListTools-GitHub": {
+      "main": [
+        [
+          {
+            "node": "Pre-ListTools-Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pre-ListTools-Notion": {
+      "main": [
+        [
+          {
+            "node": "Get tickets schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ExecuteTool-GitHub": {
+      "ai_tool": [
+        [
+          {
+            "node": "Verify conditions",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ExecuteTool-Notion": {
+      "ai_tool": [
+        [
+          {
+            "node": "Verify conditions",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate compliance obj": {
+      "main": [
+        [
+          {
+            "node": "Get old tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Conditions": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Conditions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Conditions": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Verify conditions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify conditions": {
+      "main": [
+        [
+          {
+            "node": "Next condition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Next condition": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Conditions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Verify conditions",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get old tickets": {
+      "main": [
+        [
+          {
+            "node": "parse old tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse old tickets": {
+      "main": [
+        [
+          {
+            "node": "Is empty?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete ticket": {
+      "main": [
+        [
+          {
+            "node": "Next ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Next ticket": {
+      "main": [
+        [
+          {
+            "node": "Loop over tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop over tickets": {
+      "main": [
+        [
+          {
+            "node": "Pre-ListTools-GitHub",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "PDF compliance rules?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get compliance rules": {
+      "main": [
+        [
+          {
+            "node": "Generate compliance obj",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get form data": {
+      "main": [
+        [
+          {
+            "node": "Parse Conditions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is empty?": {
+      "main": [
+        [
+          {
+            "node": "Pre-ListTools-GitHub",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop over tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get tickets schema": {
+      "main": [
+        [
+          {
+            "node": "Ticket generate structure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ticket generate structure": {
+      "main": [
+        [
+          {
+            "node": "Get form data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub compliance rules?": {
+      "main": [
+        [
+          {
+            "node": "Get compliance rules",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate compliance obj",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PDF compliance rules?": {
+      "main": [
+        [
+          {
+            "node": "Extract content",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GitHub compliance rules?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract content": {
+      "main": [
+        [
+          {
+            "node": "GitHub compliance rules?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d63e1cc2-4aad-4877-a9bc-0401a13cc0d2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "00346c5c95770cef9b5ece0527fba78c3b6169a6c9c220219e1d1b5bcc9a06c1"
+  },
+  "id": "vh2NGsXM6kF5M4MY",
+  "tags": []
+}
